@@ -23,11 +23,11 @@ function App() {
 
   const checkOnboardingStatus = async (userId: string) => {
     try {
-      const companies = await blink.db.companies.list({
+      const empresas = await blink.db.empresas.list({
         where: { userId, onboardingCompleted: "1" },
         limit: 1
       })
-      setHasCompletedOnboarding(companies.length > 0)
+      setHasCompletedOnboarding(empresas.length > 0)
     } catch (error) {
       console.error('Error checking onboarding status:', error)
       setHasCompletedOnboarding(false)
@@ -80,11 +80,7 @@ function App() {
         <Routes>
           <Route 
             path="/onboarding" 
-            element={
-              <OnboardingPage 
-                onComplete={() => setHasCompletedOnboarding(true)} 
-              />
-            } 
+            element={<OnboardingPage />} 
           />
           <Route
             path="/*"

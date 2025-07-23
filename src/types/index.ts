@@ -1,3 +1,44 @@
+export interface User {
+  id: string;
+  email: string;
+  displayName?: string;
+}
+
+export interface Empresa {
+  id: string;
+  userId: string;
+  cnpj: string;
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  enderecoCompleto?: string;
+  cnaePrincipal?: string;
+  porteEmpresa?: 'MEI' | 'ME' | 'EPP' | 'Grande Empresa';
+  produtosServicosFoco?: string;
+  experienciaLicitacoes?: 'Sim' | 'Não';
+  nomeContatoPrincipal?: string;
+  emailContato?: string;
+  telefoneWhatsapp?: string;
+  onboardingCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OnboardingMessage {
+  id: string;
+  userId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface CatmatCatserMapping {
+  id: string;
+  produtoServico: string;
+  catmatCode?: string;
+  catserCode?: string;
+  description: string;
+}
+
 export interface Company {
   id: string
   userId: string
