@@ -68,7 +68,7 @@ const OnboardingPage: React.FC = () => {
       id: `msg_${Date.now()}`,
       userId: user.id,
       role: 'assistant',
-      content: `🎉 **Bem-vindo ao IA Licitações!**\n\nOlá! Sou sua assistente de IA e vou te ajudar a configurar sua empresa para participar de licitações públicas de forma inteligente.\n\nPara começar, preciso do **CNPJ da sua empresa**. Por favor, digite o CNPJ (apenas números ou com formatação):`,
+      content: `🎉 **Bem-vindo ao IA Licitações!**\n\nOlá! Sou sua assistente de IA e vou te ajudar a configurar sua empresa para participar de licitações públicas de forma inteligente.\n\nPara começar, preciso do **CNPJ da sua empresa**. Por favor, digite o CNPJ (pode ser com ou sem formatação):\n\n*Exemplo: 11.222.333/0001-81 ou 11222333000181*`,
       timestamp: new Date().toISOString()
     };
 
@@ -167,14 +167,22 @@ const OnboardingPage: React.FC = () => {
   }, [user, catmatMappings, saveMessage]);
 
   const handleCNPJInput = useCallback(async (cnpjInput: string) => {
-    const cleanCNPJ = cnpjInput.replace(/[^\\d]/g, '');
+    console.log('CNPJ Input recebido:', cnpjInput);
     
-    if (!validateCNPJ(cleanCNPJ)) {
+    // Remove caracteres não numéricos para validação
+    const cleanCNPJ = cnpjInput.replace(/[^\d]/g, '');
+    console.log('CNPJ limpo:', cleanCNPJ);
+    
+    // Testa a validação
+    const isValid = validateCNPJ(cleanCNPJ);
+    console.log('CNPJ válido?', isValid);
+    
+    if (!isValid) {
       const errorMessage: OnboardingMessage = {
         id: `msg_${Date.now()}`,
         userId: user.id,
         role: 'assistant',
-        content: '❌ CNPJ inválido. Por favor, digite um CNPJ válido (14 dígitos):',
+        content: `❌ CNPJ inválido: "${cnpjInput}"\n\nPor favor, digite um CNPJ válido com 14 dígitos.\n\n*Exemplos válidos:*\n• 11.222.333/0001-81\n• 11222333000181`,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -182,14 +190,15 @@ const OnboardingPage: React.FC = () => {
       return;
     }
 
-    // Atualizar formulário com CNPJ
-    setFormData(prev => ({ ...prev, cnpj: formatCNPJ(cleanCNPJ) }));
+    // Atualizar formulário com CNPJ formatado
+    const formattedCNPJ = formatCNPJ(cleanCNPJ);
+    setFormData(prev => ({ ...prev, cnpj: formattedCNPJ }));
 
     const successMessage: OnboardingMessage = {
       id: `msg_${Date.now()}`,
       userId: user.id,
       role: 'assistant',
-      content: `✅ **CNPJ válido!** ${formatCNPJ(cleanCNPJ)}\n\nAgora vou coletar as demais informações da sua empresa. Vou fazer algumas perguntas e você pode responder de forma natural. Vamos começar!\n\n**Qual é a razão social da sua empresa?**`,
+      content: `✅ **CNPJ válido!** ${formattedCNPJ}\n\nAgora vou coletar as demais informações da sua empresa. Vou fazer algumas perguntas e você pode responder de forma natural. Vamos começar!\n\n**Qual é a razão social da sua empresa?**`,
       timestamp: new Date().toISOString()
     };
 
@@ -199,9 +208,11 @@ const OnboardingPage: React.FC = () => {
   }, [user, saveMessage]);
 
   const handleDataCollection = useCallback(async (userInput: string) => {
-    // Usar IA para extrair informações do input do usuário
-    const prompt = `
-Você é um assistente especializado em onboarding de empresas para licitações públicas.
+    console.log('Coletando dados do usuário:', userInput);
+    console.log('Dados atuais do formulário:', formData);
+
+    // Criar prompt mais específico para a IA
+    const prompt = `Você é um assistente especializado em onboarding de empresas para licitações públicas.
 
 CONTEXTO ATUAL:
 - CNPJ já coletado: ${formData.cnpj}
@@ -227,33 +238,54 @@ INSTRUÇÕES:
 3. Faça a próxima pergunta de forma natural e conversacional
 4. Se todos os dados foram coletados, confirme e finalize
 
-RESPONDA EM JSON:
+RESPONDA EM JSON VÁLIDO:
 {
   "extracted_data": {
-    "campo": "valor_extraido_ou_null"
+    "razaoSocial": "valor_extraido_ou_null",
+    "nomeFantasia": "valor_extraido_ou_null",
+    "enderecoCompleto": "valor_extraido_ou_null",
+    "cnaePrincipal": "valor_extraido_ou_null",
+    "porteEmpresa": "valor_extraido_ou_null",
+    "produtosServicosFoco": "valor_extraido_ou_null",
+    "experienciaLicitacoes": "valor_extraido_ou_null",
+    "nomeContatoPrincipal": "valor_extraido_ou_null",
+    "emailContato": "valor_extraido_ou_null",
+    "telefoneWhatsapp": "valor_extraido_ou_null"
   },
   "next_question": "próxima pergunta ou null se finalizado",
-  "is_complete": boolean,
+  "is_complete": false,
   "response_message": "mensagem amigável para o usuário"
-}
-`;
+}`;
 
     try {
+      console.log('Enviando prompt para IA...');
+      
       const { text } = await blink.ai.generateText({
         prompt,
         model: 'gpt-4o-mini',
-        maxTokens: 500
+        maxTokens: 800
       });
 
-      const aiResponse = JSON.parse(text);
+      console.log('Resposta da IA:', text);
+
+      // Tentar fazer parse da resposta JSON
+      let aiResponse;
+      try {
+        aiResponse = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta da IA:', parseError);
+        throw new Error('Resposta da IA não está em formato JSON válido');
+      }
       
       // Atualizar dados do formulário com informações extraídas
       const updatedFormData = { ...formData };
-      Object.entries(aiResponse.extracted_data).forEach(([key, value]) => {
-        if (value && value !== null) {
-          updatedFormData[key as keyof FormData] = value as any;
-        }
-      });
+      if (aiResponse.extracted_data) {
+        Object.entries(aiResponse.extracted_data).forEach(([key, value]) => {
+          if (value && value !== null && value !== 'null') {
+            updatedFormData[key as keyof FormData] = value as any;
+          }
+        });
+      }
       setFormData(updatedFormData);
 
       // Enviar resposta da IA
@@ -261,7 +293,7 @@ RESPONDA EM JSON:
         id: `msg_${Date.now()}`,
         userId: user.id,
         role: 'assistant',
-        content: aiResponse.response_message,
+        content: aiResponse.response_message || 'Entendi! Pode me contar mais detalhes?',
         timestamp: new Date().toISOString()
       };
 
@@ -275,12 +307,24 @@ RESPONDA EM JSON:
     } catch (error) {
       console.error('Erro na IA:', error);
       
-      // Fallback: pergunta manual
+      // Fallback: pergunta manual baseada nos dados que faltam
+      let nextQuestion = 'Pode me contar mais sobre sua empresa?';
+      
+      if (!formData.razaoSocial) {
+        nextQuestion = 'Qual é a razão social da sua empresa?';
+      } else if (!formData.emailContato) {
+        nextQuestion = 'Qual é o email de contato da empresa?';
+      } else if (!formData.telefoneWhatsapp) {
+        nextQuestion = 'Qual é o telefone ou WhatsApp para contato?';
+      } else if (!formData.produtosServicosFoco) {
+        nextQuestion = 'Quais produtos ou serviços sua empresa oferece?';
+      }
+      
       const fallbackMessage: OnboardingMessage = {
         id: `msg_${Date.now()}`,
         userId: user.id,
         role: 'assistant',
-        content: 'Entendi! Pode me contar mais sobre os produtos ou serviços que sua empresa oferece?',
+        content: `Entendi! ${nextQuestion}`,
         timestamp: new Date().toISOString()
       };
       
